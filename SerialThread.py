@@ -17,14 +17,16 @@ class ComMonitorThread(threading.Thread):
                  port_stopbits=serial.STOPBITS_ONE,
                  port_parity=serial.PARITY_NONE,
                  port_timeout=0.01):
+        print("init")
         threading.Thread.__init__(self)
-
+        print("1")
         self.serial_port = None
         self.serial_arg = dict(port=port_num,
                                baudrate=port_baud,
                                stopbits=port_stopbits,
                                parity=port_parity,
                                timeout=port_timeout)
+        print("2")
         self.bytesIO = bytesIO
         self.error_q = error_q
 

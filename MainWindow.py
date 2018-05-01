@@ -57,7 +57,7 @@ class MainWindow(QWidget):
         #self.btnFilter.clicked.connect(self.onclick_filter)
 
         self.btnSave = QPushButton("Save to File")
-        #self.btnSave.clicked.connect(self.onclick_save_to_file)
+        self.btnSave.clicked.connect(self.onclick_save_to_file)
 
         self.lblStatus = QLabel()
 
@@ -112,6 +112,10 @@ class MainWindow(QWidget):
         self.accX = []
         self.accY = []
         self.accZ = []
+        self.temp = []
+        self.gyroX = []
+        self.gyroY = []
+        self.gyroZ = []
         self.l_pos = []
         self.r_pos = []
         self.l_press = []
@@ -127,12 +131,13 @@ class MainWindow(QWidget):
     def onclick_connect(self):
         portName = self.comPort.currentText()
         portBaud = int(self.comBaud.currentText())
-
+        print("creating com port")
         if self.monitor is None:
-            self.monitor = ComMonitorThread(self.self.bytesIO,
+            print("creating com port")
+            self.monitor = ComMonitorThread(self.bytesIO,
                                             self.error_q,
-                                            portName,
-                                            portBaud)
+                                            port_num=portName,
+                                            port_baud=portBaud)
             print("monitor created")
             self.monitor.open_port()
             print("monitor started")
@@ -173,8 +178,8 @@ class MainWindow(QWidget):
 
     def onclick_stop(self):
         if self.monitor:
-            self.monitor.send(b'b')
-            self.lblInd.setStyleSheet("background-color: green")
+            self.monitor.send_byte(b'b')
+            self.lblInd.setStyleSheet("background-color: red")
             self.process_data()
 
     def onclick_save_to_file(self):
@@ -182,31 +187,37 @@ class MainWindow(QWidget):
         if ok and self.timings:
             with open(str(text) + ".pickle", "wb") as f:
                 pickle.dump((self.timings, self.accX, self.accY, self.accZ,
+                             self.temp, self.gyroX, self.gyroY, self.gyroZ,
                              self.l_pos, self.l_press, self.r_pos, self.r_press), f)
                 print("File saved")
 
     def process_data(self):
-        message_len = 24
+        message_len = 28
         self.timings = []
         self.accX = []
         self.accY = []
         self.accZ = []
+        self.temp = []
+        self.gyroX = []
+        self.gyroY = []
+        self.gyroZ = []
         self.l_pos = []
         self.r_pos = []
         self.l_press = []
         self.r_press = []
 
         raw_data = list(self.bytesIO.getbuffer())[:]
+        print("1st index:", raw_data.index(127))
         raw_data = raw_data[raw_data.index(127):]
         int_data = []
         while len(raw_data) > (message_len - 1) and raw_data[message_len-1] is 10:
             temp_struct = []
             for i in range(message_len):
-                print("Получаем срез кадой посылки")
+                print(raw_data[0], end=' ')
                 temp_struct.append(raw_data.pop(0))
-
+            print()
             temp_struct_2 = []
-            for i in range(int(message_len / 2) - 2):
+            for i in range(int(message_len / 2) - 1):
                 temp_struct_2.append(temp_struct[i * 2 + 1] * 256 + temp_struct[i * 2 + 2])
 
             int_data.append(temp_struct_2)
@@ -218,6 +229,10 @@ class MainWindow(QWidget):
             self.accX.append(slice[2])
             self.accY.append(slice[3])
             self.accZ.append(slice[4])
+            self.temp.append(slice[5])
+            self.gyroX.append(slice[6])
+            self.gyroY.append(slice[7])
+            self.gyroZ.append(slice[8])
             self.l_pos.append(slice[9])
             self.r_pos.append(slice[11])
             self.l_press.append(slice[10])
@@ -225,11 +240,15 @@ class MainWindow(QWidget):
 
         print("timings:", self.timings[:20])
 
+        plt.figure(1)
+        plt.plot(self.timings, self.l_pos, self.timings, self.r_pos, self.timings, self.l_press, self.timings, self.r_press)
+        plt.show()
+
 
 if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.setWindowTitle("Arduino 24 bytes")
+    window.setWindowTitle("Arduino 28 bytes")
     window.show()
     sys.exit(app.exec_())

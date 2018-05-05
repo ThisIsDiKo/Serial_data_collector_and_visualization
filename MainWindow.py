@@ -35,7 +35,9 @@ class MainWindow(QWidget):
         self.lblFileName = QLabel()
 
         self.btnOpenFile = QPushButton("Open File")
-        #self.btnOpenFile.clicked.connect(self.onclick_open_file)
+        self.btnOpenFile.clicked.connect(self.onclick_open_file)
+        self.btnOpenTxtFile = QPushButton("Open TXT File")
+        self.btnOpenTxtFile.clicked.connect(self.onclick_open_txt_file)
 
         self.btnStart = QPushButton("Start")
         self.btnStart.clicked.connect(self.onclick_start)
@@ -70,6 +72,7 @@ class MainWindow(QWidget):
         self.hboxFile.addWidget(self.lblFile)
         self.hboxFile.addWidget(self.lblFileName)
         self.hboxFile.addWidget(self.btnOpenFile)
+        self.hboxFile.addWidget(self.btnOpenTxtFile)
 
         self.hboxControl = QHBoxLayout()
         self.hboxControl.addWidget(self.btnStart)
@@ -190,6 +193,109 @@ class MainWindow(QWidget):
                              self.temp, self.gyroX, self.gyroY, self.gyroZ,
                              self.l_pos, self.l_press, self.r_pos, self.r_press), f)
                 print("File saved")
+
+    def onclick_open_txt_file(self):
+        fname = QFileDialog.getOpenFileName(self, 'Open File', '', 'Data File (*.txt)')[0]
+        try:
+            f = open(fname, 'rb')
+        except:
+            print("error reading file")
+            return
+        raw_data = []
+        byte = f.read(1)
+        while byte != b'':
+            raw_data.append(int.from_bytes(byte, byteorder='big'))
+            byte = f.read(1)
+        f.close()
+        print("Len of file:", len(raw_data))
+
+        message_len = 28
+        self.timings = []
+        self.accX = []
+        self.accY = []
+        self.accZ = []
+        self.temp = []
+        self.gyroX = []
+        self.gyroY = []
+        self.gyroZ = []
+        self.l_pos = []
+        self.r_pos = []
+        self.l_press = []
+        self.r_press = []
+        print("hello")
+        print(raw_data[:20])
+        print(type(raw_data[0]))
+        print("1st index:", raw_data.index(127))
+        raw_data = raw_data[raw_data.index(127):]
+        int_data = []
+        print("raw_data[message_len - 1]:", raw_data[message_len - 1])
+        while len(raw_data) > (message_len - 1) and raw_data[message_len - 1] == 10:
+            temp_struct = []
+            for i in range(message_len):
+                temp_struct.append(raw_data.pop(0))
+            print('.')
+            temp_struct_2 = []
+            for i in range(int(message_len / 2) - 1):
+                temp_struct_2.append(temp_struct[i * 2 + 1] * 256 + temp_struct[i * 2 + 2])
+
+            int_data.append(temp_struct_2)
+
+        print("Размер целочисленных данных:", len(int_data), len(int_data[0]))
+
+        for slice in int_data:
+            self.timings.append(slice[0] * 65536 + slice[1])
+            self.accX.append(slice[2])
+            self.accY.append(slice[3])
+            self.accZ.append(slice[4])
+            self.temp.append(slice[5])
+            self.gyroX.append(slice[6])
+            self.gyroY.append(slice[7])
+            self.gyroZ.append(slice[8])
+            self.l_pos.append(slice[9])
+            self.r_pos.append(slice[11])
+            self.l_press.append(slice[10])
+            self.r_press.append(slice[12])
+
+        print("timings:", self.timings[:20])
+
+        plt.figure(1)
+        plt.plot(self.timings, self.l_pos, self.timings, self.r_pos, self.timings, self.l_press, self.timings,
+                 self.r_press)
+        plt.show()
+
+
+    def onclick_open_file(self):
+        fname = QFileDialog.getOpenFileName(self, 'Open File', '', 'Data File (*.pickle)')[0]
+
+        try:
+            f = open(fname, 'rb')
+        except:
+            print("error reading file")
+            return
+
+        with f:
+            data = pickle.load(f)
+
+            if len(data) == 12:
+                self.timings = data[0][:]
+                self.accX = data[1][:]
+                self.accY = data[2][:]
+                self.accZ = data[3][:]
+                self.temp = data[4][:]
+                self.gyroX = data[5][:]
+                self.gyroY = data[6][:]
+                self.gyroZ = data[7][:]
+                self.l_pos = data[8][:]
+                self.l_press = data[9][:]
+                self.r_pos = data[10][:]
+                self.r_press = data[11][:]
+                del data
+                print("Size of loaded data:", len(self.timings))
+
+        f.close()
+        plt.figure(12)
+        plt.plot(self.timings, self.l_pos)
+        plt.show()
 
     def process_data(self):
         message_len = 28

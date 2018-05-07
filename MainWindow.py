@@ -7,6 +7,8 @@ import io
 import matplotlib.pyplot as plt
 import pickle
 from statistics import median
+import time
+import matplotlib.animation as animation
 
 
 class ComboBox(QComboBox):
@@ -176,8 +178,10 @@ class MainWindow(QWidget):
         if self.monitor:
             self.bytesIO.truncate(0)
             self.bytesIO.seek(0)
-            self.monitor.send_byte(b'a')
+            self.monitor.start_rec()
             self.lblInd.setStyleSheet("background-color: green")
+
+
 
     def onclick_stop(self):
         if self.monitor:
@@ -319,9 +323,7 @@ class MainWindow(QWidget):
         while len(raw_data) > (message_len - 1) and raw_data[message_len-1] is 10:
             temp_struct = []
             for i in range(message_len):
-                print(raw_data[0], end=' ')
                 temp_struct.append(raw_data.pop(0))
-            print()
             temp_struct_2 = []
             for i in range(int(message_len / 2) - 1):
                 temp_struct_2.append(temp_struct[i * 2 + 1] * 256 + temp_struct[i * 2 + 2])

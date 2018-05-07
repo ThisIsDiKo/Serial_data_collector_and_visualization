@@ -2,7 +2,9 @@
 import threading
 import serial
 import serial.tools.list_ports_windows
-
+import time
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 # import sys
 # from io import BytesIO
@@ -32,6 +34,14 @@ class ComMonitorThread(threading.Thread):
 
         self.running = True
 
+        self.rec_packet_size = 28;
+        self.serialData = [[], [], [], []]
+
+        self.plotTimer = 0
+        self.previousTimer = 0
+        self.data = [[0 for i in range(200)], [0 for i in range(200)],
+                     [0 for i in range(200)], [0 for i in range(200)]]
+
     def open_port(self):
         self.running = True
         try:
@@ -52,10 +62,18 @@ class ComMonitorThread(threading.Thread):
         print("Starting listening to port")
         while self.running:
             if self.serial_port:
-                new_data = self.serial_port.read(1)
-                new_data += self.serial_port.read(self.serial_port.inWaiting())
-                if len(new_data) > 0:
+                if self.serial_port.inWaiting() > 27:
+                    new_data = self.serial_port.read(28)
                     self.bytesIO.write(new_data)
+                    if len(new_data) == 28:
+                        l_pos = int.from_bytes(new_data[19:21], byteorder='big')
+                        l_press = int.from_bytes(new_data[21:23], byteorder='big')
+                        r_pos = int.from_bytes(new_data[23:25], byteorder='big')
+                        r_press = int.from_bytes(new_data[25:27], byteorder='big')
+                        self.serialData[0].append(l_pos)
+                        self.serialData[1].append(l_press)
+                        self.serialData[2].append(r_pos)
+                        self.serialData[3].append(r_press)
         print("Stop listening port")
 
     """
@@ -72,3 +90,46 @@ class ComMonitorThread(threading.Thread):
         self.running = False
         if self.serial_port:
             self.serial_port.close()
+            print('Disconnected...')
+
+    def getSerialData(self, frame, lines, lineValueText, lineLabel, timeText):
+        currentTimer = time.clock()
+        self.plotTimer = int((currentTimer - self.previousTimer) * 1000)  # the first reading will be erroneous
+        self.previousTimer = currentTimer
+        timeText.set_text('Plot Interval = ' + str(self.plotTimer) + 'ms')
+
+        for i in range(4):
+            self.data[i].extend(self.serialData[i])  # we get the latest data point and append it to our array
+            lines[i].set_data(range(200), self.data[i][-200:])
+            lineValueText[i].set_text('[' + lineLabel[i] + '] = ' + str(self.data[i][-1]))
+
+    def start_rec(self):
+        self.send_byte(b'a')
+        time.sleep(2.0)
+        numPlots = 4
+        pltInterval = 100  # Period at which the plot animation updates [ms]
+        xmin = 0
+        xmax = 200
+        ymin = 0
+        ymax = 1023
+        # fig = plt.figure(figsize=(10, 8))
+        fig = plt.figure(1)
+        ax = plt.axes(xlim=(xmin, xmax), ylim=(float(ymin - (ymax - ymin) / 10), float(ymax + (ymax - ymin) / 10)))
+        ax.set_title('Data from suspension')
+        ax.set_xlabel("Time")
+        ax.set_ylabel("ADC output")
+
+        lineLabel = ['X', 'Y', 'Z', 'J']
+        style = ['r-', 'g-', 'b-', 'c-']  # linestyles for the different plots
+        timeText = ax.text(0.70, 0.95, '', transform=ax.transAxes)
+        lines = []
+        lineValueText = []
+        for i in range(numPlots):
+            lines.append(ax.plot([], [], style[i], label=lineLabel[i])[0])
+            lineValueText.append(ax.text(0.70, 0.90 - i * 0.05, '', transform=ax.transAxes))
+        anim = animation.FuncAnimation(fig, self.getSerialData,
+                                       fargs=(lines, lineValueText, lineLabel, timeText),
+                                       interval=pltInterval)  # fargs has to be a tuple
+
+        plt.legend(loc="upper left")
+        plt.show()

@@ -316,7 +316,12 @@ class MainWindow(QWidget):
         self.l_press = []
         self.r_press = []
 
+        print("processing data")
         raw_data = list(self.bytesIO.getbuffer())[:]
+        self.bytesIO.truncate(0)
+        self.bytesIO.seek(0)
+        print("got buffer")
+        '''
         print("1st index:", raw_data.index(127))
         raw_data = raw_data[raw_data.index(127):]
         int_data = []
@@ -329,6 +334,24 @@ class MainWindow(QWidget):
                 temp_struct_2.append(temp_struct[i * 2 + 1] * 256 + temp_struct[i * 2 + 2])
 
             int_data.append(temp_struct_2)
+        '''
+        raw_data = raw_data[raw_data.index(127):]
+        int_data = []
+        progress_list = [i for i in range(1, len(raw_data), int(len(raw_data)/100))]
+        cur_bar = 0
+        print("Starting cycle")
+        print("raw: ", raw_data[:56])
+        for i in range(0, len(raw_data), message_len):
+            temp_str = []
+            for j in range(1, message_len-1, 2):
+                temp_str.append(int.from_bytes(raw_data[i + j : i + j + 2], byteorder='big'))
+            int_data.append(temp_str)
+            #Процесс вычисления
+            if i > progress_list[cur_bar] and cur_bar < (len(progress_list) - 1):
+                cur_bar += 1
+                print(cur_bar, '%')
+
+        print("int data:", int_data[:2])
 
         print("Размер целочисленных данных:", len(int_data), len(int_data[0]))
 
@@ -345,7 +368,7 @@ class MainWindow(QWidget):
             self.r_pos.append(slice[11])
             self.l_press.append(slice[10])
             self.r_press.append(slice[12])
-
+        del int_data
         print("timings:", self.timings[:20])
 
         plt.figure(1)

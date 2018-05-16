@@ -1,10 +1,11 @@
-# import queue
+import queue
 import threading
 import serial
 import serial.tools.list_ports_windows
 import time
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from collections import deque
 
 # import sys
 # from io import BytesIO
@@ -39,8 +40,11 @@ class ComMonitorThread(threading.Thread):
 
         self.plotTimer = 0
         self.previousTimer = 0
-        self.data = [[0 for i in range(200)], [0 for i in range(200)],
-                     [0 for i in range(200)], [0 for i in range(200)]]
+        self.data = [deque(maxlen=200), deque(maxlen=200),
+                     deque(maxlen=200), deque(maxlen=200)]
+        for i in range(4):
+            for j in range(200):
+                self.data[i].append(0)
 
     def open_port(self):
         self.running = True
@@ -100,12 +104,13 @@ class ComMonitorThread(threading.Thread):
 
         for i in range(4):
             self.data[i].extend(self.serialData[i])  # we get the latest data point and append it to our array
-            lines[i].set_data(range(200), self.data[i][-200:])
+            self.serialData[i].clear()
+            lines[i].set_data(range(200), list(self.data[i]))
             lineValueText[i].set_text('[' + lineLabel[i] + '] = ' + str(self.data[i][-1]))
 
     def start_rec(self):
         self.send_byte(b'a')
-        time.sleep(2.0)
+        time.sleep(1.0)
         numPlots = 4
         pltInterval = 100  # Period at which the plot animation updates [ms]
         xmin = 0
@@ -113,7 +118,7 @@ class ComMonitorThread(threading.Thread):
         ymin = 0
         ymax = 1023
         # fig = plt.figure(figsize=(10, 8))
-        fig = plt.figure(1)
+        fig = plt.figure(111)
         ax = plt.axes(xlim=(xmin, xmax), ylim=(float(ymin - (ymax - ymin) / 10), float(ymax + (ymax - ymin) / 10)))
         ax.set_title('Data from suspension')
         ax.set_xlabel("Time")

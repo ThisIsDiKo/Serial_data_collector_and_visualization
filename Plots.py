@@ -1,6 +1,6 @@
 import sys
 
-from PyQt5.QtWidgets import QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QFileDialog
+from PyQt5.QtWidgets import QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QFileDialog, QCheckBox, QMainWindow
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -14,8 +14,8 @@ class Window(QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
 
-        self.figSensors = Figure()
-        self.figAccel = Figure(figsize=(3, 3))
+        self.figSensors = Figure(dpi=80)
+        self.figAccel = Figure(figsize=(4, 4), dpi=80)
 
         self.canvasSensors = FigureCanvas(self.figSensors)
         self.canvasAccel = FigureCanvas(self.figAccel)
@@ -23,7 +23,12 @@ class Window(QDialog):
         self.toolbarSensors = NavigationToolbar(self.canvasSensors, self)
 
         self.axesSensors = self.figSensors.add_subplot(211)
-        self.axesVelocity = self.figSensors.add_subplot(212)
+        self.axesSensors.set_title("Графики сигнала и скорости")
+        self.axesSensors.set_ylabel("Сигнал (отн. ед)")
+        self.axesSensors.set_xlabel("Время, с")
+        self.axesVelocity = self.figSensors.add_subplot(212, sharex=self.axesSensors)
+        self.axesVelocity.set_ylabel("Скорость (отн. ед / с)")
+        self.axesVelocity.set_xlabel("Время, с")
 
         self.axesXYAccel = self.figAccel.add_subplot(211)
         self.axesZAccel = self.figAccel.add_subplot(212)
@@ -31,16 +36,32 @@ class Window(QDialog):
         self.btnOpenTxt = QPushButton("Open .txt file")
         self.btnOpenTxt.clicked.connect(self.onclick_open_txt)
 
+        self.chbox1 = QCheckBox("1 (Red)")
+        self.chbox1.setChecked(True)
+        self.chbox1.clicked.connect(self.chbox_draw_plots)
+        self.chbox2 = QCheckBox("2 (Green)")
+        self.chbox2.clicked.connect(self.chbox_draw_plots)
+        self.chbox3 = QCheckBox("3 (Blue)")
+        self.chbox3.clicked.connect(self.chbox_draw_plots)
+        self.chbox4 = QCheckBox("4 (Cyan)")
+        self.chbox4.clicked.connect(self.chbox_draw_plots)
+
         self.hbox = QHBoxLayout()
         self.hbox.addWidget(self.btnOpenTxt)
         self.vbox = QVBoxLayout()
         self.vbox.addWidget(self.toolbarSensors)
         self.vbox.addWidget(self.canvasSensors)
+        self.hboxChbox = QHBoxLayout()
+        self.hboxChbox.addWidget(self.chbox1)
+        self.hboxChbox.addWidget(self.chbox2)
+        self.hboxChbox.addWidget(self.chbox3)
+        self.hboxChbox.addWidget(self.chbox4)
+        self.vbox.addLayout(self.hboxChbox)
         self.hbox.addLayout(self.vbox)
         self.hbox.addWidget(self.canvasAccel)
 
         self.setLayout(self.hbox)
-        self.setMinimumSize(1000, 500)
+        self.setMinimumSize(1000, 700)
 
         self.timings = []
         self.accX = []
@@ -130,21 +151,60 @@ class Window(QDialog):
 
         print("timings:", self.timings[:20])
 
-        self.draw_plots(True, True, True, True)
+        self.chbox_draw_plots()
         self.draw_accel_plots(0)
+
+    def chbox_draw_plots(self):
+        draw1 = self.chbox1.isChecked()
+        draw2 = self.chbox2.isChecked()
+        draw3 = self.chbox3.isChecked()
+        draw4 = self.chbox4.isChecked()
+        print(draw1, draw2, draw3, draw4)
+
+        if self.timings:
+            self.draw_plots(draw1, draw2, draw3, draw4)
+
 
     def draw_plots(self, draw_1, draw_2, draw_3, draw_4):
         self.axesSensors.clear()
         self.axesSensors.grid()
+        self.axesSensors.set_title("Графики сигнала и скорости")
+        self.axesSensors.set_ylabel("Сигнал (отн. ед)")
+        self.axesSensors.set_xlabel("Время, с")
+        self.axesSensors.set_xlim([min(self.timings), max(self.timings)])
+
+
+        self.axesVelocity.clear()
+        self.axesVelocity.grid()
+        self.axesVelocity.set_ylabel("Скорость (отн. ед / с)")
+        self.axesVelocity.set_xlabel("Время, с")
+        self.axesVelocity.set_xlim([min(self.timings), max(self.timings)])
 
         if draw_1:
             self.axesSensors.plot(self.timings, self.l_pos, 'r')
+            vel = []
+            for i in range(1, len(self.timings)):
+                vel.append((self.l_pos[i] - self.l_pos[i-1]) / (self.timings[i] - self.timings[i-1]))
+            print("Seize:", len(vel), len(self.timings), len(self.timings[1:]))
+            self.axesVelocity.plot(self.timings[1:], vel, 'r')
         if draw_2:
             self.axesSensors.plot(self.timings, self.l_press, 'g')
+            vel = []
+            for i in range(1, len(self.timings)):
+                vel.append((self.l_press[i] - self.l_press[i - 1]) / (self.timings[i] - self.timings[i - 1]))
+            self.axesVelocity.plot(self.timings[1:], vel, 'g')
         if draw_3:
             self.axesSensors.plot(self.timings, self.r_pos, 'b')
+            vel = []
+            for i in range(1, len(self.timings)):
+                vel.append((self.r_pos[i] - self.r_pos[i - 1]) / (self.timings[i] - self.timings[i - 1]))
+            self.axesVelocity.plot(self.timings[1:], vel, 'b')
         if draw_4:
             self.axesSensors.plot(self.timings, self.r_press, 'c')
+            vel = []
+            for i in range(1, len(self.timings)):
+                vel.append((self.r_press[i] - self.r_press[i - 1]) / (self.timings[i] - self.timings[i - 1]))
+            self.axesVelocity.plot(self.timings[1:], vel, 'c')
 
         self.canvasSensors.draw()
 
@@ -156,6 +216,7 @@ class Window(QDialog):
         self.axesXYAccel.grid()
         self.axesXYAccel.set_xlim([-1, 1])
         self.axesXYAccel.set_ylim([-1, 1])
+        self.axesXYAccel.set_title("Ускорения")
         self.axesXYAccel.axhline(color='k').set_ydata(0)
         self.axesXYAccel.axvline(color='k').set_xdata(0)
         self.axesXYAccel.plot(self.accX[indx], self.accY[indx], 'ro')
@@ -171,17 +232,24 @@ class Window(QDialog):
 
     def canvas_sensors_onmove(self, event):
         if event.button == 1:
-            if event.xdata > 0:
-                self.canvas_onclicked_left(event)
+            if event.xdata is not None:
+                if event.xdata > 0 :
+                    print(event.xdata, event.ydata)
+                    self.canvas_onclicked_left(event)
 
     def canvas_sensors_onclick(self, event):
         if event.button == 1:
-            if event.xdata > 0:
-                self.canvas_onclicked_left(event)
+            if event.xdata is not None:
+                if event.xdata > 0 :
+                    print("clicked", event.xdata, event.ydata)
+                    self.canvas_onclicked_left(event)
 
     def canvas_onclicked_left(self, event):
-        indx = np.searchsorted(self.timings, [event.xdata])[0]
-        self.draw_accel_plots(indx)
+        try:
+            indx = np.searchsorted(self.timings, [event.xdata])[0]
+            self.draw_accel_plots(indx)
+        except:
+            print("Out of index")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

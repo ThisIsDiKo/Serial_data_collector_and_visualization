@@ -2,6 +2,7 @@ import sys
 from PyQt5.QtWidgets import (QWidget, QPushButton, QLineEdit, QLabel, QGridLayout,
     QDialog, QApplication, QMessageBox)
 from PyQt5.QtCore import Qt
+import ConfigStorage
 
 class ConfigDialog(QDialog):
     def __init__(self, data):
@@ -24,25 +25,36 @@ class ConfigDialog(QDialog):
         lbl12 = QLabel("Правый передний")
         lbl13 = QLabel("Левый задний")
         lbl14 = QLabel("Левый передний")
+
+        self.vLFMaxCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'LFMax')
+        self.vLFRefCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'LFRef')
+        self.vRFMaxCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'RFMax')
+        self.vRFRefCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'RFRef')
+
+        self.vLRMaxCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'LRMax')
+        self.vLRRefCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'LRRef')
+        self.vRRMaxCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'RRMax')
+        self.vRRRefCm = ConfigStorage.get_setting('suspension_config.ini', 'Suspension', 'RRRef')
+
         self.LFMax = QLineEdit(str(self.data[0]))
-        self.LFMaxCm = QLineEdit("18")
+        self.LFMaxCm = QLineEdit(str(self.vLFMaxCm))
         self.LFRef = QLineEdit(str(self.data[1]))
-        self.LFRefCm = QLineEdit("10")
+        self.LFRefCm = QLineEdit(str(self.vLFRefCm))
 
         self.RFMax = QLineEdit(str(self.data[2]))
-        self.RFMaxCm = QLineEdit("18")
+        self.RFMaxCm = QLineEdit(str(self.vRFMaxCm))
         self.RFRef = QLineEdit(str(self.data[3]))
-        self.RFRefCm = QLineEdit("10")
+        self.RFRefCm = QLineEdit(str(self.vRFRefCm))
 
         self.LRMax = QLineEdit(str(self.data[4]))
-        self.LRMaxCm = QLineEdit("18")
+        self.LRMaxCm = QLineEdit(str(self.vLRMaxCm))
         self.LRRef = QLineEdit(str(self.data[5]))
-        self.LRRefCm = QLineEdit("10")
+        self.LRRefCm = QLineEdit(str(self.vLRRefCm))
 
         self.RRMax = QLineEdit(str(self.data[6]))
-        self.RRMaxCm = QLineEdit("18")
+        self.RRMaxCm = QLineEdit(str(self.vRRMaxCm))
         self.RRRef = QLineEdit(str(self.data[7]))
-        self.RRRefCm = QLineEdit("10")
+        self.RRRefCm = QLineEdit(str(self.vRRRefCm))
 
         self.btnAccept = QPushButton("Принять")
         self.btnAccept.clicked.connect(self.get_val)
@@ -89,10 +101,30 @@ class ConfigDialog(QDialog):
     def get_val(self):
         self.returnVal = []
         try:
+
+            self.vLFMaxCm = float(self.LFMaxCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'LFMax', str(self.vLFMaxCm))
+            self.vLFRefCm = float(self.LFRefCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'LFRef', str(self.vLFRefCm))
+            self.vRFMaxCm = float(self.RFMaxCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'RFMax', str(self.vRFMaxCm))
+            self.vRFRefCm = float(self.RFRefCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'RFRef', str(self.vRFRefCm))
+
+            self.vLRMaxCm = float(self.LRMaxCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'LRMax', str(self.vLRMaxCm))
+            self.vLRRefCm = float(self.LRRefCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'LRRef', str(self.vLRRefCm))
+            self.vRRMaxCm = float(self.RRMaxCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'RRMax', str(self.vRRMaxCm))
+            self.vRRRefCm = float(self.RRRefCm.text())
+            ConfigStorage.update_setting('suspension_config.ini', 'Suspension', 'RRRef', str(self.vRRRefCm))
+
             self.returnVal.append(float(self.LFMaxCm.text()))
             self.returnVal.append(float(self.LFRefCm.text()))
             self.returnVal.append(float(self.RFMaxCm.text()))
             self.returnVal.append(float(self.RFRefCm.text()))
+
             self.returnVal.append(float(self.LRMaxCm.text()))
             self.returnVal.append(float(self.LRRefCm.text()))
             self.returnVal.append(float(self.RRMaxCm.text()))

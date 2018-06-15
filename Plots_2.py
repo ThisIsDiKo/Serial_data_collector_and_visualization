@@ -9,6 +9,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 
 from ConfigDialog import ConfigDialog
+
 from statistics import mean
 
 import struct
@@ -263,10 +264,10 @@ class Window(QDialog):
             self.tYMax.setText('{:.2f}'.format(max_val))
             self.tYmin.setText('{:.2f}'.format(min_val))
 
-        self.data[list_num]['LF'] = self.simple_filter(self.data[list_num]['LF'], 2)
-        self.data[list_num]['RF'] = self.simple_filter(self.data[list_num]['RF'], 2)
-        self.data[list_num]['LR'] = self.simple_filter(self.data[list_num]['LR'], 2)
-        self.data[list_num]['RR'] = self.simple_filter(self.data[list_num]['RR'], 2)
+        # self.data[list_num]['LF'] = self.simple_filter(self.data[list_num]['LF'], 2)
+        # self.data[list_num]['RF'] = self.simple_filter(self.data[list_num]['RF'], 2)
+        # self.data[list_num]['LR'] = self.simple_filter(self.data[list_num]['LR'], 2)
+        # self.data[list_num]['RR'] = self.simple_filter(self.data[list_num]['RR'], 2)
 
         min_timing = min(self.data[list_num]['timings'])
         print("Min timings is: ", min_timing, self.data[list_num]['timings'][:10])

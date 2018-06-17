@@ -170,7 +170,6 @@ class Window(QDialog):
         self.vbox = QVBoxLayout()
         self.hboxNav = QHBoxLayout()
         self.hboxNav.addWidget(self.toolbarSensors)
-        self.hboxNav.addWidget(self.tableVel)
         self.vbox.addLayout(self.hboxNav)
         self.vbox.addWidget(self.canvasSensors)
 
@@ -188,11 +187,14 @@ class Window(QDialog):
         self.hboxChbox2.addWidget(self.chbox7)
         self.hboxChbox2.addWidget(self.chbox8)
 
-        self.hboxChbox = QVBoxLayout()
-        self.hboxChbox.addLayout(self.hboxChbox1)
-        self.hboxChbox.addLayout(self.hboxChbox2)
+        self.vboxChbox = QVBoxLayout()
+        self.vboxChbox.addLayout(self.hboxChbox1)
+        self.vboxChbox.addLayout(self.hboxChbox2)
+        self.hboxBottom = QHBoxLayout()
+        self.hboxBottom.addLayout(self.vboxChbox)
+        self.hboxBottom.addWidget(self.tableVel)
 
-        self.vbox.addLayout(self.hboxChbox)
+        self.vbox.addLayout(self.hboxBottom)
         self.hbox.addLayout(self.vbox)
         self.hbox.addWidget(self.canvasAccel)
 

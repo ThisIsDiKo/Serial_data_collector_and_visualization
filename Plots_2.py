@@ -1,12 +1,17 @@
 import sys
 
 from PyQt5.QtWidgets import QDialog, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QFileDialog, QCheckBox, \
-    QMainWindow, QLabel, QLineEdit, QSizePolicy, QMessageBox
+    QMainWindow, QLabel, QLineEdit, QSizePolicy, QMessageBox, QComboBox
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import  QObject, pyqtSignal
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+
+from SerialThreadV2 import ComMonitorThread
+import serial.tools.list_ports_windows as comPortList
+import queue
+import io
 
 from ConfigDialog import ConfigDialog
 
@@ -15,16 +20,51 @@ from statistics import mean
 import struct
 import numpy as np
 
+class ComboBox(QComboBox):
+    popUpSignal = pyqtSignal()
+
+    def showPopup(self):
+        self.popUpSignal.emit()
+        super(ComboBox, self).showPopup()
 
 class Window(QDialog):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
+        #------------------------------------------------------------
+        self.comPort = ComboBox()
+        self.update_port_list()
+        self.comPort.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.comPort.popUpSignal.connect(self.update_port_list)
 
+        self.comBaud = QComboBox()
+        self.comBaud.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.comBaud.addItems(["115200", "9600"])
+
+        self.btnConnect = QPushButton("Подключить")
+        self.btnConnect.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.btnConnect.clicked.connect(self.onclick_connect)
+
+        self.btnStart = QPushButton("Start")
+        self.btnStart.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.btnStart.clicked.connect(self.onclick_start)
+
+        self.btnStop = QPushButton("Stop")
+        self.btnStop.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.btnStop.clicked.connect(self.onclick_stop)
+
+        self.lblInd = QLabel("Not Connected")
+        self.lblInd.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.lblInd.setStyleSheet("background-color: red")
+
+        self.error_q = queue.Queue()
+        self.monitor = None
+        self.bytesIO = io.BytesIO()
+        #------------------------------------------------------------
         self.figSensors = Figure(dpi=80)
         self.figAccel = Figure(dpi=50)
 
         self.canvasSensors = FigureCanvas(self.figSensors)
-        self.canvasSensors.setMinimumSize(900, 200)
+        self.canvasSensors.setMinimumSize(600, 200)
         self.canvasAccel = FigureCanvas(self.figAccel)
         self.canvasAccel.setFixedSize(200, 400)
 
@@ -97,13 +137,26 @@ class Window(QDialog):
         self.tableVel.setItem(1, 1, QTableWidgetItem("---------------"))
         self.tableVel.setItem(1, 2, QTableWidgetItem("---------------"))
         self.tableVel.setItem(1, 3, QTableWidgetItem("---------------"))
-        self.tableVel.setFixedSize(375, 75)
+        self.tableVel.setFixedSize(400, 75)
 
         self.tableVel.resizeColumnsToContents()
         self.tableVel.resizeRowsToContents()
 
         self.hbox = QHBoxLayout()
         self.vboxBtn = QVBoxLayout()
+
+        self.hboxComPort = QHBoxLayout()
+        self.hboxComPort.addWidget(self.comPort)
+        self.hboxComPort.addWidget(self.comBaud)
+        self.hboxComPort.addWidget(self.btnConnect)
+
+        self.hboxControl = QHBoxLayout()
+        self.hboxControl.addWidget(self.btnStart)
+        self.hboxControl.addWidget(self.btnStop)
+
+        self.vboxBtn.addLayout(self.hboxComPort)
+        self.vboxBtn.addLayout(self.hboxControl)
+        self.vboxBtn.addWidget(self.lblInd)
         self.vboxBtn.addWidget(self.btnOpenTxt1)
         self.vboxBtn.addWidget(self.btnOpenTxt2)
         self.vboxBtn.addWidget(self.lblYMax)
@@ -449,6 +502,62 @@ class Window(QDialog):
             return_list[i] = mean(data[0 + i:(window_size - 1) + i])
         return return_list
 
+    def onclick_connect(self):
+        portName = self.comPort.currentText()
+        portBaud = int(self.comBaud.currentText())
+        print("creating com port")
+        if self.monitor is None:
+            print("creating com port")
+            self.monitor = ComMonitorThread(self.bytesIO,
+                                            self.error_q,
+                                            port_num=portName,
+                                            port_baud=portBaud)
+            print("monitor created")
+            self.monitor.open_port()
+            print("monitor started")
+            com_error = self.error_q.get()[0]
+            print("got status")
+            self.monitor.start()
+            if com_error is not "port error":
+                self.btnStart.setEnabled(True)
+                self.btnStop.setEnabled(True)
+                self.lblInd.setText("Port Connected")
+                return
+
+            self.monitor = None
+            self.btnStart.setEnabled(False)
+            self.btnStop.setEnabled(False)
+            self.lblInd.setText("Connection error")
+
+    def onclick_start(self):
+        if self.monitor:
+            self.bytesIO.truncate(0)
+            self.bytesIO.seek(0)
+            self.lblInd.setStyleSheet("background-color: green")
+            self.monitor.start_rec()
+
+    def onclick_stop(self):
+        if self.monitor:
+            self.monitor.send_byte(b'b')
+            self.lblInd.setStyleSheet("background-color: red")
+
+    def update_port_list(self):
+        l = list()
+        self.comPort.clear()
+        for p in comPortList.comports():
+            l.append(p.device)
+        self.comPort.addItems(l)
+
+    def closeEvent(self, QCloseEvent):
+        try:
+            if self.monitor:
+                print("finishing monitor")
+                self.monitor.stop()
+        except:
+            print("exit error")
+
+        print("exit by btn")
+        QCloseEvent.accept()
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
